@@ -6,434 +6,96 @@
     <title>TaskShare - Aplikasi Pembagian Tugas Kelompok</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        [v-cloak] { display: none; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    </style>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAhNfMGItIy54SoX_5iyuO0WUbZ_aIHcQA",
+            authDomain: "taskshare-app1207.firebaseapp.com",
+            projectId: "taskshare-app1207",
+            storageBucket: "taskshare-app1207.firebasestorage.app",
+            messagingSenderId: "248811604460",
+            appId: "1:248811604460:web:c35b52013f821f470298c9",
+            measurementId: "G-SHWFR8Z86K"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.db = db;
+        window.doc = doc;
+        window.onSnapshot = onSnapshot;
+        window.setDoc = setDoc;
+        window.updateDoc = updateDoc;
+        window.getDoc = getDoc;
+    </script>
+    <style> [v-cloak] { display: none; } </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased">
-
-    <div id="app" v-cloak>
-        <div v-if="!currentGroupId" class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-white">
-            <div class="text-center mb-8">
-                <div class="bg-blue-600 text-white p-4 rounded-2xl inline-block mb-4 shadow-lg shadow-blue-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                </div>
-                <h1 class="text-4xl font-black text-slate-900 tracking-tight">TaskShare</h1>
-                <p class="text-slate-500 mt-2 max-w-sm mx-auto font-medium">Manajemen tugas kelompok pelajar secara instan dan privat.</p>
-            </div>
-
-            <div class="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-100 overflow-hidden border border-slate-100">
-                <div class="flex border-b border-slate-100 bg-slate-50/50">
-                    <button @click="isCreating = false; errorMsg = ''" :class="['flex-1 py-4 text-sm font-bold transition-colors', !isCreating ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-400 hover:text-slate-600']">
-                        Gabung Grup
-                    </button>
-                    <button @click="isCreating = true; errorMsg = ''" :class="['flex-1 py-4 text-sm font-bold transition-colors', isCreating ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-400 hover:text-slate-600']">
-                        Buat Grup Baru
-                    </button>
-                </div>
-
-                <div class="p-6 md:p-8">
-                    <div v-if="errorMsg" class="mb-4 p-3.5 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center text-sm font-medium">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                        {{ errorMsg }}
-                    </div>
-
-                    <form v-if="!isCreating" @submit.prevent="joinGroup" class="space-y-4">
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">ID atau Link Kelompok</label>
-                          <input type="text" v-model="joinId" placeholder="Masukkan ID (Contoh: X7K29P)" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium" required>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-lg shadow-blue-600/20 active:scale-[0.99]">
-                            Masuk ke Grup 
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                        </button>
-                    </form>
-
-                    <form v-else @submit.prevent="createGroup" class="space-y-4">
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama Kelompok / Tugas</label>
-                          <input type="text" v-model="newGroupName" placeholder="Contoh: Proyek Biologi Kelompok 3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium" required>
-                        </div>
-                        <div>
-                          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama Panggilan Anda</label>
-                          <input type="text" v-model="creatorName" placeholder="Contoh: Iki" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium" required>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-lg shadow-blue-600/20 active:scale-[0.99]">
-                            Buat Grup Sekarang
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                        </button>
-                    </form>
-                </div>
-            </div>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased">
+    <div id="app" v-cloak class="p-4 min-h-screen">
+        <div v-if="!currentGroupId" class="flex flex-col items-center mt-20">
+            <h1 class="text-3xl font-black mb-4">TaskShare Cloud</h1>
+            <input v-model="joinId" placeholder="Masukkan ID Grup" class="border p-2 rounded mb-2 w-full max-w-sm">
+            <button @click="joinGroup" class="bg-blue-600 text-white px-4 py-2 rounded w-full max-w-sm">Gabung</button>
+            <button @click="createGroup" class="mt-4 text-blue-600 font-bold">Buat Grup Baru</button>
         </div>
 
-        <div v-else class="min-h-screen flex flex-col mb-16 lg:mb-0">
-            <div v-if="showIdentifyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl transition-all">
-                    <div class="text-center mb-6">
-                        <h2 class="text-2xl font-black text-slate-800">Siapa namamu?</h2>
-                        <p class="text-slate-500 text-sm mt-1 font-medium">Pilih nama profilmu atau buat baru untuk bergabung di kelompok <br><span class="text-blue-600 font-bold">"{{ currentGroup.name }}"</span></p>
-                    </div>
-
-                    <div v-if="currentGroup.members.length > 0" class="mb-5">
-                        <div class="flex flex-wrap justify-center gap-2 max-h-32 overflow-y-auto p-1">
-                            <button v-for="m in currentGroup.members" :key="m.id" @click="selectIdentity(m)" class="px-3.5 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-xl text-sm font-semibold transition-all border border-transparent hover:border-blue-200">
-                                {{ m.name }}
-                            </button>
-                        </div>
-                        <div class="relative flex items-center py-3">
-                            <div class="flex-grow border-t border-slate-200"></div>
-                            <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest">Atau buat baru</span>
-                            <div class="flex-grow border-t border-slate-200"></div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-3">
-                        <input type="text" v-model="tempMemberName" placeholder="Ketik nama panggilan barumu..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none font-medium">
-                        <button @click="createNewIdentity" :disabled="!tempMemberName.trim()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50">
-                            Masuk Sebagai Anggota Baru
-                        </button>
-                    </div>
+        <div v-else class="max-w-2xl mx-auto">
+            <h2 class="text-2xl font-bold mb-4">Grup ID: {{ currentGroupId }}</h2>
+            <div class="bg-white p-4 shadow rounded">
+                <h3 class="font-bold border-b pb-2 mb-2">Daftar Tugas</h3>
+                <div v-for="task in groupData.tasks" :key="task.id" class="p-2 border-b">{{ task.title }}</div>
+                <div class="flex gap-2 mt-4">
+                    <input v-model="newTask" class="border p-2 flex-grow" placeholder="Tambah tugas baru...">
+                    <button @click="addTask" class="bg-green-500 text-white px-4 py-2 rounded">Tambah</button>
                 </div>
             </div>
-
-            <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shadow-slate-100/50">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <button @click="leaveGroup" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>
-                        </button>
-                        <div>
-                            <h1 class="text-base sm:text-lg font-black text-slate-800 leading-tight">{{ currentGroup.name }}</h1>
-                            <p class="text-xs text-slate-400 font-bold flex items-center mt-0.5">
-                                <span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>
-                                ID: {{ currentGroup.id }} &bull; {{ currentGroup.members.length }} Anggota
-                            </p>
-                        </div>
-                    </div>
-
-                    <button @click="copyGroupLink" :class="['flex items-center px-4 py-2 rounded-full text-xs font-bold transition-all', linkCopied ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-700 hover:bg-blue-100']">
-                        {{ linkCopied ? 'Link Disalin!' : 'Salin Link Kelompok' }}
-                    </button>
-                </div>
-            </header>
-
-            <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-4 gap-6 py-6">
-                <div :class="['lg:col-span-3 flex flex-col space-y-6', mobileTab !== 'tasks' ? 'hidden lg:flex' : 'flex']">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-                        <div class="space-y-1">
-                            <h3 class="text-sm font-bold text-slate-700">Progress Kelompok</h3>
-                            <p class="text-xs text-slate-400 font-medium">{{ totalCompletedTasks }} dari {{ currentGroup.tasks.length }} tugas selesai</p>
-                        </div>
-                        <div class="flex items-center space-x-4 w-2/3 max-w-xs justify-end">
-                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                                <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" :style="{ width: taskProgressPercent + '%' }"></div>
-                            </div>
-                            <span class="text-lg font-black text-blue-600">{{ taskProgressPercent }}%</span>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-black text-slate-800">Papan Pembagian Tugas</h2>
-                        <button @click="showAddTaskForm = !showAddTaskForm" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center transition-all">
-                            Tambah Tugas
-                        </button>
-                    </div>
-
-                    <div v-if="showAddTaskForm" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                        <form @submit.prevent="addTask" class="space-y-4">
-                            <input type="text" v-model="newTaskTitle" placeholder="Deskripsi tugas kelompok (Contoh: Membuat PowerPoint)..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-medium" required>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <select v-model="newTaskAssignee" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium">
-                                    <option value="">Pilih Penanggung Jawab (Opsional)</option>
-                                    <option v-for="m in currentGroup.members" :key="m.id" :value="m.id">{{ m.name }}</option>
-                                </select>
-                                <input type="date" v-model="newTaskDeadline" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium">
-                            </div>
-                            <div class="flex justify-end space-x-2">
-                                <button type="button" @click="showAddTaskForm = false" class="px-4 py-2 text-xs font-bold text-slate-500">Batal</button>
-                                <button type="submit" class="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl">Simpan</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div class="bg-slate-100/60 rounded-2xl p-4 flex flex-col min-h-[350px]">
-                            <div class="flex items-center justify-between mb-4 font-bold text-slate-600 text-xs">
-                                <span>BELUM DIKERJAKAN</span>
-                                <span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{{ getTasksByStatus('todo').length }}</span>
-                            </div>
-                            <div class="flex flex-col space-y-3 flex-1">
-                                <div v-for="task in getTasksByStatus('todo')" :key="task.id" class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group">
-                                    <h4 class="text-sm font-semibold text-slate-800 mb-3 pr-6">{{ task.title }}</h4>
-                                    <div class="flex items-center justify-between pt-2.5 border-t border-slate-50 text-[10px]">
-                                        <span class="bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded-md">👤 {{ getMemberName(task.assigneeId) }}</span>
-                                        <span v-if="task.deadline" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-md">⏰ {{ formatDate(task.deadline) }}</span>
-                                    </div>
-                                    <div class="absolute top-3 right-3 flex items-center space-x-1">
-                                        <select @change="updateTaskStatus(task.id, $event.target.value)" class="text-[10px] border border-slate-200 rounded px-1 py-0.5 font-bold text-slate-500 outline-none">
-                                            <option value="todo" selected>Belum</option>
-                                            <option value="in-progress">Sedang</option>
-                                            <option value="done">Selesai</option>
-                                        </select>
-                                        <button @click="deleteTask(task.id)" class="text-slate-400 hover:text-red-500 p-0.5">X</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-100/60 rounded-2xl p-4 flex flex-col min-h-[350px]">
-                            <div class="flex items-center justify-between mb-4 font-bold text-blue-600 text-xs">
-                                <span>SEDANG DIKERJAKAN</span>
-                                <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ getTasksByStatus('in-progress').length }}</span>
-                            </div>
-                            <div class="flex flex-col space-y-3 flex-1">
-                                <div v-for="task in getTasksByStatus('in-progress')" :key="task.id" class="bg-white p-4 rounded-xl border border-blue-100/60 shadow-sm relative group">
-                                    <h4 class="text-sm font-semibold text-slate-800 mb-3 pr-6">Iki {{ task.title }}</h4>
-                                    <div class="flex items-center justify-between pt-2.5 border-t border-slate-50 text-[10px]">
-                                        <span class="bg-blue-50 text-blue-700 px-2 py-1 rounded-md">👤 {{ getMemberName(task.assigneeId) }}</span>
-                                        <span v-if="task.deadline" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-md">⏰ {{ formatDate(task.deadline) }}</span>
-                                    </div>
-                                    <div class="absolute top-3 right-3 flex items-center space-x-1">
-                                        <select @change="updateTaskStatus(task.id, $event.target.value)" class="text-[10px] border border-slate-200 rounded px-1 py-0.5 font-bold text-slate-500 outline-none">
-                                            <option value="todo">Belum</option>
-                                            <option value="in-progress" selected>Sedang</option>
-                                            <option value="done">Selesai</option>
-                                        </select>
-                                        <button @click="deleteTask(task.id)" class="text-slate-400 hover:text-red-500 p-0.5">X</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-100/60 rounded-2xl p-4 flex flex-col min-h-[350px]">
-                            <div class="flex items-center justify-between mb-4 font-bold text-green-600 text-xs">
-                                <span>SELESAI</span>
-                                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{{ getTasksByStatus('done').length }}</span>
-                            </div>
-                            <div class="flex flex-col space-y-3 flex-1">
-                                <div v-for="task in getTasksByStatus('done')" :key="task.id" class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative group">
-                                    <h4 class="text-sm font-medium text-slate-400 line-through mb-3 pr-6">{{ task.title }}</h4>
-                                    <div class="flex items-center justify-between pt-2.5 border-t border-slate-50 text-[10px]">
-                                        <span class="bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-md">✓ Berhasil</span>
-                                    </div>
-                                    <div class="absolute top-3 right-3 flex items-center space-x-1">
-                                        <select @change="updateTaskStatus(task.id, $event.target.value)" class="text-[10px] border border-slate-200 rounded px-1 py-0.5 font-bold text-slate-500 outline-none">
-                                            <option value="todo">Belum</option>
-                                            <option value="in-progress">Sedang</option>
-                                            <option value="done" selected>Selesai</option>
-                                        </select>
-                                        <button @click="deleteTask(task.id)" class="text-slate-400 hover:text-red-500 p-0.5">X</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div :class="['lg:col-span-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-[450px] sticky top-24', mobileTab !== 'chat' ? 'hidden lg:flex' : 'flex']">
-                    <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                        <h3 class="font-bold text-slate-800 text-sm">Diskusi Kelompok</h3>
-                    </div>
-
-                    <div ref="chatContainer" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/40">
-                        <div v-for="chat in currentGroup.chats" :key="chat.id" :class="['flex flex-col', chat.senderId === myIdentity?.id ? 'items-end' : 'items-start']">
-                            <span class="text-[10px] font-bold text-slate-400 mb-0.5">{{ chat.senderName }}</span>
-                            <div :class="['max-w-[85%] px-3 py-1.5 rounded-xl text-xs font-medium shadow-sm', chat.senderId === myIdentity?.id ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-700 border rounded-tl-none']">
-                                {{ chat.text }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="p-3 bg-white border-t border-slate-100">
-                        <form @submit.prevent="sendChat" class="flex items-center bg-slate-100 rounded-full p-1 pl-4">
-                            <input type="text" v-model="newChatText" placeholder="Ketik pesan..." class="flex-1 bg-transparent border-none outline-none text-xs text-slate-700 font-medium" required>
-                            <button type="submit" :disabled="!newChatText.trim()" class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">></button>
-                        </form>
-                    </div>
-                </div>
-            </main>
-
-            <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-40 shadow-lg">
-                <button @click="mobileTab = 'tasks'" :class="['flex-1 py-3.5 text-center text-xs font-bold', mobileTab === 'tasks' ? 'text-blue-600 bg-blue-50/20' : 'text-slate-400']">Papan Tugas</button>
-                <button @click="mobileTab = 'chat'; scrollToBottom()" :class="['flex-1 py-3.5 text-center text-xs font-bold', mobileTab === 'chat' ? 'text-blue-600 bg-blue-50/20' : 'text-slate-400']">Diskusi Chat</button>
-            </div>
+            <button @click="currentGroupId = null" class="mt-4 text-red-500 text-sm">Keluar Grup</button>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted, nextTick } = Vue;
-
+        const { createApp, ref, reactive } = Vue;
         createApp({
             setup() {
                 const currentGroupId = ref(null);
-                const currentGroup = ref(null);
-                const isCreating = ref(false);
-                const showIdentifyModal = ref(false);
-                const mobileTab = ref('tasks');
-                const errorMsg = ref('');
-                const linkCopied = ref(false);
-
+                const groupData = reactive({ tasks: [] });
                 const joinId = ref('');
-                const newGroupName = ref('');
-                const creatorName = ref('');
-                const tempMemberName = ref('');
-                const myIdentity = ref(null);
+                const newTask = ref('');
+                let unsubscribe = null;
 
-                const showAddTaskForm = ref(false);
-                const newTaskTitle = ref('');
-                const newTaskAssignee = ref('');
-                const newTaskDeadline = ref('');
-                const newChatText = ref('');
-                const chatContainer = ref(null);
-
-                const makeId = (length) => {
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-                    let result = '';
-                    for (let i = 0; i < length; i++) { result += chars.charAt(Math.floor(Math.random() * chars.length)); }
-                    return result;
+                const createGroup = async () => {
+                    const id = Math.random().toString(36).substring(7).toUpperCase();
+                    await setDoc(doc(window.db, "groups", id), { tasks: [] });
+                    currentGroupId.value = id;
+                    listenToGroup(id);
                 };
 
-                const loadGroupData = (id) => {
-                    const saved = localStorage.getItem(`ts_group_${id}`);
-                    if (saved) { currentGroup.value = JSON.parse(saved); return true; }
-                    return false;
+                const joinGroup = async () => {
+                    const snap = await window.getDoc(window.doc(window.db, "groups", joinId.value));
+                    if (snap.exists()) {
+                        currentGroupId.value = joinId.value;
+                        listenToGroup(joinId.value);
+                    } else { alert("Grup dak ketemu, cek lagi ID-nya!"); }
                 };
 
-                const saveGroupData = () => {
-                    if (currentGroup.value) { localStorage.setItem(`ts_group_${currentGroup.value.id}`, JSON.stringify(currentGroup.value)); }
-                };
-
-                const checkMyIdentity = (groupId) => {
-                    const savedUser = localStorage.getItem(`ts_my_profile_${groupId}`);
-                    if (savedUser) {
-                        const parsedUser = JSON.parse(savedUser);
-                        const exists = currentGroup.value.members.find(m => m.id === parsedUser.id);
-                        if (exists) { myIdentity.value = parsedUser; showIdentifyModal.value = false; return; }
-                    }
-                    showIdentifyModal.value = true;
-                };
-
-                const selectIdentity = (memberObj) => {
-                    myIdentity.value = memberObj;
-                    localStorage.setItem(`ts_my_profile_${currentGroup.value.id}`, JSON.stringify(memberObj));
-                    showIdentifyModal.value = false;
-                    scrollToBottom();
-                };
-
-                const createNewIdentity = () => {
-                    if (!tempMemberName.value.trim()) return;
-                    const newMember = { id: makeId(8), name: tempMemberName.value.trim() };
-                    currentGroup.value.members.push(newMember);
-                    saveGroupData();
-                    selectIdentity(newMember);
-                    tempMemberName.value = '';
-                };
-
-                onMounted(() => {
-                    const params = new URLSearchParams(window.location.search);
-                    const groupUrlParam = params.get('g');
-                    if (groupUrlParam) {
-                        const cleanId = groupUrlParam.trim().toUpperCase();
-                        if (loadGroupData(cleanId)) {
-                            currentGroupId.value = cleanId;
-                            checkMyIdentity(cleanId);
-                            scrollToBottom();
-                        } else {
-                            window.history.replaceState({}, document.title, window.location.pathname);
-                        }
-                    }
-                    window.addEventListener('storage', (e) => {
-                        if (currentGroupId.value && e.key === `ts_group_${currentGroupId.value}`) { currentGroup.value = JSON.parse(e.newValue); }
+                const listenToGroup = (id) => {
+                    if (unsubscribe) unsubscribe();
+                    unsubscribe = window.onSnapshot(window.doc(window.db, "groups", id), (doc) => {
+                        if(doc.exists()) Object.assign(groupData, doc.data());
                     });
-                });
-
-                const createGroup = () => {
-                    if (!newGroupName.value.trim() || !creatorName.value.trim()) return;
-                    const gId = makeId(6);
-                    const mId = makeId(8);
-                    const newGroupPayload = {
-                        id: gId, name: newGroupName.value.trim(), createdAt: Date.now(),
-                        members: [{ id: mId, name: creatorName.value.trim() }], tasks: [], chats: []
-                    };
-                    localStorage.setItem(`ts_group_${gId}`, JSON.stringify(newGroupPayload));
-                    currentGroup.value = newGroupPayload;
-                    currentGroupId.value = gId;
-                    const profileObj = { id: mId, name: creatorName.value.trim() };
-                    myIdentity.value = profileObj;
-                    localStorage.setItem(`ts_my_profile_${gId}`, JSON.stringify(profileObj));
-                    window.history.pushState({}, '', `?g=${gId}`);
-                    newGroupName.value = ''; creatorName.value = '';
                 };
 
-                const joinGroup = () => {
-                    let targetId = joinId.value.trim();
-                    if (targetId.includes('?g=')) { targetId = targetId.split('?g=')[1]?.split('&')[0] || targetId; }
-                    targetId = targetId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                    if (loadGroupData(targetId)) {
-                        currentGroupId.value = targetId;
-                        window.history.pushState({}, '', `?g=${targetId}`);
-                        checkMyIdentity(targetId);
-                        joinId.value = '';
-                        scrollToBottom();
-                    } else { errorMsg.value = 'ID Kelompok tidak ditemukan di memori lokal browser ini.'; }
+                const addTask = async () => {
+                    if(!newTask.value) return;
+                    const taskList = groupData.tasks ? [...groupData.tasks] : [];
+                    taskList.push({ id: Date.now(), title: newTask.value });
+                    await window.updateDoc(window.doc(window.db, "groups", currentGroupId.value), { tasks: taskList });
+                    newTask.value = '';
                 };
 
-                const copyGroupLink = () => {
-                    const cleanUrl = window.location.origin + window.location.pathname;
-                    const fullLink = `${cleanUrl}?g=${currentGroupId.value}`;
-                    const textArea = document.createElement("textarea");
-                    textArea.value = fullLink;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    linkCopied.value = true;
-                    setTimeout(() => linkCopied.value = false, 2500);
-                    textArea.remove();
-                };
-
-                const leaveGroup = () => {
-                    currentGroupId.value = null; currentGroup.value = null; myIdentity.value = null;
-                    window.history.pushState({}, document.title, window.location.pathname);
-                };
-
-                const getTasksByStatus = (status) => { if (!currentGroup.value) return []; return currentGroup.value.tasks.filter(t => t.status === status); };
-                const getMemberName = (id) => { if (!id) return 'Belum Ada'; const found = currentGroup.value.members.find(m => m.id === id); return found ? found.name : 'Anggota Keluar'; };
-
-                const addTask = () => {
-                    if (!newTaskTitle.value.trim()) return;
-                    currentGroup.value.tasks.push({ id: makeId(8), title: newTaskTitle.value.trim(), assigneeId: newTaskAssignee.value || null, deadline: newTaskDeadline.value || null, status: 'todo', createdAt: Date.now() });
-                    saveGroupData();
-                    newTaskTitle.value = ''; newTaskAssignee.value = ''; newTaskDeadline.value = ''; showAddTaskForm.value = false;
-                };
-
-                const updateTaskStatus = (taskId, newStatus) => { const task = currentGroup.value.tasks.find(t => t.id === taskId); if (task) { task.status = newStatus; saveGroupData(); } };
-                const deleteTask = (taskId) => { if (confirm('Hapus tugas ini?')) { currentGroup.value.tasks = currentGroup.value.tasks.filter(t => t.id !== taskId); saveGroupData(); } };
-
-                const sendChat = () => {
-                    if (!newChatText.value.trim() || !myIdentity.value) return;
-                    currentGroup.value.chats.push({ id: makeId(8), senderId: myIdentity.value.id, senderName: myIdentity.value.name, text: newChatText.value.trim(), timestamp: Date.now() });
-                    saveGroupData(); newChatText.value = ''; scrollToBottom();
-                };
-
-                const scrollToBottom = () => { nextTick(() => { if (chatContainer.value) { chatContainer.value.scrollTop = chatContainer.value.scrollHeight; } }); };
-                const totalCompletedTasks = computed(() => { if (!currentGroup.value) return 0; return currentGroup.value.tasks.filter(t => t.status === 'done').length; });
-                const taskProgressPercent = computed(() => { if (!currentGroup.value || currentGroup.value.tasks.length === 0) return 0; return Math.round((totalCompletedTasks.value / currentGroup.value.tasks.length) * 100); });
-                const formatDate = (dateStr) => { if (!dateStr) return ''; return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }); };
-
-                return {
-                    currentGroupId, currentGroup, isCreating, showIdentifyModal, mobileTab, errorMsg, linkCopied,
-                    joinId, newGroupName, creatorName, tempMemberName, myIdentity,
-                    showAddTaskForm, newTaskTitle, newTaskAssignee, newTaskDeadline, newChatText, chatContainer,
-                    createGroup, joinGroup, copyGroupLink, leaveGroup, selectIdentity, createNewIdentity,
-                    getTasksByStatus, getMemberName, addTask, updateTaskStatus, deleteTask, sendChat, scrollToBottom,
-                    totalCompletedTasks, taskProgressPercent, formatDate
-                };
+                return { currentGroupId, groupData, joinId, newTask, createGroup, joinGroup, addTask };
             }
         }).mount('#app');
     </script>
